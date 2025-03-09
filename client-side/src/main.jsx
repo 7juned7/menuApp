@@ -15,7 +15,6 @@ createRoot(document.getElementById('root')).render(
           <Route path="/" element={<App />} />
           <Route path="/food" element={<FoodPage />} />
           <Route path="/cart" element={<CartPage />} />
-
         </Routes>
       </BrowserRouter>
     </StrictMode >

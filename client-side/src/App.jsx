@@ -14,8 +14,7 @@ function App() {
     <>
       <Navbar />
       <MenuPage />
-
-
+      
     </>
   )
 }
