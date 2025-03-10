@@ -4,9 +4,30 @@ import { useCartContext } from '../Context/CartContext';
 
 const CartPage = () => {
     const { cart } = useCartContext();
-
+    const { setCart, setItemCount } = useCartContext();
     const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    console.log(cart)
+
+    const removeFromCart = (food) => {
+        setCart(prevCart => {
+            const existingItem = prevCart.find(item => item.id === food.id);
+
+            if (existingItem) {
+                if (existingItem.quantity > 1) {
+                    // Reduce quantity if greater than 1
+                    return prevCart.map(item =>
+                        item.id === food.id ? { ...item, quantity: item.quantity - 1 } : item
+                    );
+                } else {
+                    // Remove item if quantity is 1
+                    return prevCart.filter(item => item.id !== food.id);
+                }
+            }
+            return prevCart; // If item doesn't exist, return cart as is
+        });
+
+        setItemCount(prevCount => (prevCount > 0 ? prevCount - 1 : 0));
+    };
+
     return (
 
         <div className="p-6 max-w-3xl mx-auto bg-white rounded-xl shadow-md space-y-4">
@@ -19,7 +40,7 @@ const CartPage = () => {
                         <div key={index} className="flex justify-between items-center border-b pb-2">
                             <span className="text-lg">{item.name} (x{item.quantity})</span>
                             <span className="text-gray-600">${item.price * item.quantity}</span>
-                            <button className="px-3 py-1 bg-red-500 text-white rounded" onClick={() => removeFromCart(index)}>Remove</button>
+                            <button className="px-3 py-1 bg-red-500 text-white rounded" onClick={() => removeFromCart(item)}>Remove</button>
                         </div>
                     ))}
                     <div className="flex justify-between text-lg font-bold">

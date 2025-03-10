@@ -2,8 +2,10 @@ import React from 'react'
 import { FaCartArrowDown } from "react-icons/fa6";
 import { Link } from 'react-router-dom';
 import logo from "../assets/logo.svg"
+import { useCartContext } from '../Context/CartContext';
 import SubNav from './SubNav';
 const Navbar = () => {
+    const { itemCount } = useCartContext();
     return (
         <>
             <SubNav />
@@ -13,7 +15,7 @@ const Navbar = () => {
                     <li>HOME</li>
                     <li>ABOUT</li>
                 </ul>
-                <Link to="/cart" className='relative' ><FaCartArrowDown className='text-4xl z-10 relative' /> <span className='absolute bottom-7 left-7 bg-black text-white p-1 w-6 h-6 items-center flex justify-center rounded-full'>0</span></Link>
+                <Link to="/cart" className='relative' ><FaCartArrowDown className='text-4xl z-10 relative' /> <span className='absolute bottom-7 left-7 bg-black text-white p-1 w-6 h-6 items-center flex justify-center rounded-full'>{itemCount}</span></Link>
 
             </nav>
         </>

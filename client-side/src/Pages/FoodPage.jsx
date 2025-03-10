@@ -5,7 +5,7 @@ import Navbar from '../Components/Navbar';
 import { useCartContext } from '../Context/CartContext';
 
 const FoodPage = () => {
-    const { cart, setCart } = useCartContext();
+    const { cart, setCart, setItemCount } = useCartContext();
     const location = useLocation();
 
     const food = location.state
@@ -13,9 +13,20 @@ const FoodPage = () => {
     const increaseQty = () => setQuantity(quantity + 1);
     const decreaseQty = () => setQuantity(quantity > 1 ? quantity - 1 : 1);
     const addToCart = (food) => {
-        setCart([...cart, { ...food, quantity }]);
+        setItemCount(prevCount => prevCount + 1);
+        setCart(prevCart => {
+            const existingItem = prevCart.find(item => item.id === food.id);
+            if (existingItem) {
+                return prevCart.map(item =>
+                    item.id === food.id ? { ...item, quantity: item.quantity + quantity } : item
+                );
+            } else {
+                return [...prevCart, { ...food, quantity }];
+            }
+        });
+        console.log(cart)
+    };
 
-    }
     const goToBuy = (food) => {
         setCart([...cart, { ...food, quantity }]);
 

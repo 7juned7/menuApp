@@ -1,12 +1,15 @@
 import { useState } from "react";
-
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useCartContext } from "../Context/CartContext";
+import { useOrderContext } from "../Context/OrderContext";
 
 export function CheckoutPage() {
-    const { cart } = useCartContext();
+    const Navigate = useNavigate()
+    const { cart, setCart, setItemCount } = useCartContext();
+    const { customerOrder, setCustomerOrder } = useOrderContext()
     const [customer, setCustomer] = useState({ name: "", tableNo: "", payment: "" });
     const [orderPlaced, setOrderPlaced] = useState(false);
+    const [orderData, setOrderData] = useState(null); // Store order details
 
     const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -16,17 +19,33 @@ export function CheckoutPage() {
 
     const handleOrder = () => {
         if (customer.name && customer.tableNo && customer.payment) {
+            const newOrder = {
+                id: `ORD-${Date.now()}`, // Unique order ID
+                customer: { ...customer },
+                items: [...cart],
+                total: totalPrice,
+                status: "Pending",
+            };
+
+            setOrderData(newOrder); // Store order details
+            setCustomerOrder([...customerOrder, newOrder])
+            setCart([]); // Clear cart after order
+            setItemCount(0);
             setOrderPlaced(true);
+
+
         } else {
             alert("Please fill in all details to place the order.");
         }
     };
 
     if (orderPlaced) {
+        Navigate("../admin")
         return (
             <div className="p-6 max-w-3xl mx-auto flex flex-col items-center justify-center h-screen bg-white rounded-xl shadow-md text-center">
                 <h2 className="text-2xl font-bold">Thank You!</h2>
                 <p className="text-gray-600">Your order has been placed successfully.</p>
+                <pre className="text-left text-sm bg-gray-100 p-4 rounded">{JSON.stringify(orderData, null, 2)}</pre>
                 <Link to="/" className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Continue Shopping</Link>
             </div>
         );

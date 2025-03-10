@@ -7,19 +7,25 @@ import FoodPage from './Pages/FoodPage'
 import { CartProvider } from './Context/CartContext'
 import CartPage from './Pages/CartPage'
 import { CheckoutPage } from './Pages/CheckoutPage'
+import AdminPage from './Pages/AdminPage'
+import { OrderProvider } from './Context/OrderContext'
 createRoot(document.getElementById('root')).render(
-  <CartProvider>
+  <OrderProvider>
 
-    <StrictMode>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<App />} />
-          <Route path="/food" element={<FoodPage />} />
-          <Route path="/cart" element={<CartPage />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
-        </Routes>
-      </BrowserRouter>
-    </StrictMode >
-  </CartProvider>
+    <CartProvider>
+
+      <StrictMode>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<App />} />
+            <Route path="/food" element={<FoodPage />} />
+            <Route path="/cart" element={<CartPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+          </Routes>
+        </BrowserRouter>
+      </StrictMode >
+    </CartProvider>
+  </OrderProvider>
 
 )
