@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { FaMinus, FaPlus } from 'react-icons/fa6';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import Navbar from '../Components/Navbar';
 import { useCartContext } from '../Context/CartContext';
 
@@ -16,12 +16,16 @@ const FoodPage = () => {
         setCart([...cart, { ...food, quantity }]);
 
     }
+    const goToBuy = (food) => {
+        setCart([...cart, { ...food, quantity }]);
+
+    }
 
 
     return (
         <>
             <Navbar />
-            <div className="p-6   flex gap-6 items-center">
+            <div className="p-6 flex gap-6 items-center">
                 <img src={food.image} alt={food.name} className="w-1/2 h-64 object-cover rounded" />
                 <div className="space-y-4 w-1/2">
                     <h2 className="text-2xl font-bold">{food.name}</h2>
@@ -33,12 +37,21 @@ const FoodPage = () => {
                         <span className="text-lg font-semibold">{quantity}</span>
                         <button className="px-3 py-1 bg-gray-300 rounded" onClick={increaseQty}><FaPlus /></button>
                     </div>
-                    <button
-                        className="mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                        onClick={() => addToCart(food, quantity)}
-                    >
-                        Add to Cart
-                    </button>
+                    <div className='flex gap-2'>
+                        <button
+                            className="mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                            onClick={() => addToCart(food, quantity)}
+                        >
+                            Add to Cart
+                        </button>
+
+                        <Link to="../cart"
+                            className="mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                            onClick={() => goToBuy(food, quantity)}
+                        >
+                            Buy
+                        </Link>
+                    </div>
                 </div>
             </div>
         </>

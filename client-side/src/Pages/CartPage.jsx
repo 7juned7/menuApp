@@ -30,7 +30,7 @@ const CartPage = () => {
             )}
             <div className="flex justify-between mt-4">
                 <Link to="/" className="px-4 py-2 bg-gray-300 text-black rounded hover:bg-gray-400">Continue Shopping</Link>
-                {cart.length > 0 && <button className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Checkout</button>}
+                {cart.length > 0 && <Link to="../checkout" className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Checkout</Link>}
             </div>
         </div>
     )
