@@ -1,12 +1,14 @@
 import express, { Request, Response } from "express";
 import bcrypt from "bcrypt";
-import {User, Menu} from "./models";
+import {User, Menu, Order} from "./models";
 import jwt from "jsonwebtoken";
 import { authenticate, authorizeAdmin } from "./authorize";
 import multer from "multer";
+import cors from "cors";
 
 const PORT = 5000;
 const app = express();
+app.use(cors());
 
 // Configure Multer for image upload (store in memory as Buffer)
 const storage = multer.memoryStorage();
@@ -119,7 +121,7 @@ app.put("/api/additem", authenticate, authorizeAdmin, upload.single("image"), as
 })
 
 // get all items
-app.get("/api/getmenu", async(req: Request, res: Response): Promise<any> => {
+app.get("/api/getmenu", async (req: Request, res: Response): Promise<any> => {
     try{
         const menu = await Menu.find();
         if(menu.length === 0){
@@ -131,6 +133,28 @@ app.get("/api/getmenu", async(req: Request, res: Response): Promise<any> => {
         res.status(500).json({message: "Internal Server Error"});
     }
 })
+
+app.get("/api/getitem/:id", async (req: Request, res: Response): Promise<any> => {
+    try {
+        const { id } = req.params;
+
+        if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(400).json({ message: "Invalid item ID" });
+        }
+
+        const item = await Menu.findById(id);
+
+        if (!item) {
+            return res.status(404).json({ message: "Item not found" });
+        }
+
+        res.status(200).json({ item });
+    } catch (err) {
+        console.error("Error in /getitem:", err);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+});
+
 
 // modify an item in menu
 app.put("/api/changeitem/:id", authenticate, authorizeAdmin, upload.single("image"), async (req: Request, res: Response): Promise<any> => {
@@ -161,6 +185,88 @@ app.put("/api/changeitem/:id", authenticate, authorizeAdmin, upload.single("imag
         res.status(200).json({ message: "Item updated successfully", updatedItem });
     } catch (err) {
         console.error("Error in change item: ", err);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+});
+
+
+app.post("/api/order", async (req: Request, res: Response): Promise<any> => {
+    try {
+        const { tableNumber, items } = req.body;
+
+        // ✅ Validate Request
+        if (!tableNumber || !items || items.length === 0) {
+            return res.status(400).json({ message: "Table number and items are required" });
+        }
+
+        // ✅ Create and Save Order
+        const newOrder = new Order({ tableNumber, items });
+        await newOrder.save();
+
+        res.status(201).json({ message: "Order placed successfully", order: newOrder });
+    } catch (err) {
+        console.error("Error in /order:", err);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+});
+
+app.get("/api/orders", authenticate, authorizeAdmin, async (req: Request, res: Response) => {
+    try {
+        const orders = await Order.find().populate("items.itemId");
+
+        res.status(200).json({ orders });
+    } catch (err) {
+        console.error("Error in /orders:", err);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+});
+
+app.put("/api/order/:id/status", authenticate, authorizeAdmin, async (req: Request, res: Response): Promise<any> => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!["pending", "preparing", "ready", "served"].includes(status)) {
+            return res.status(400).json({ message: "Invalid status update" });
+        }
+
+        const order = await Order.findByIdAndUpdate(id, { status }, { new: true });
+
+        if (!order) return res.status(404).json({ message: "Order not found" });
+
+        res.status(200).json({ message: "Order status updated", order });
+    } catch (err) {
+        console.error("Error in /order/status:", err);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+});
+
+app.get("/api/order-status/:tableNumber", async (req: Request, res: Response): Promise<any> => {
+    try {
+        const { tableNumber } = req.params;
+
+        // Validate table number
+        if (isNaN(Number(tableNumber))) {
+            return res.status(400).json({ message: "Invalid table number" });
+        }
+
+        // Find the latest order for the given table
+        const order = await Order.findOne({ tableNumber })
+            .sort({ createdAt: -1 }) // Get the latest order
+            .select("items status createdAt");
+
+        if (!order) {
+            return res.status(404).json({ message: "No order found for this table" });
+        }
+
+        res.status(200).json({
+            tableNumber,
+            status: order.status,
+            items: order.items,
+            createdAt: order.createdAt,
+        });
+    } catch (err) {
+        console.error("Error in fetching order status:", err);
         res.status(500).json({ message: "Internal Server Error" });
     }
 });

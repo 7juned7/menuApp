@@ -24,11 +24,26 @@ interface IUser extends Document {
     role: string,
 }
 
+interface IOrderItem {
+    itemId: string;
+    name: string;
+    quantity: number;
+}
+
+export interface IOrder extends Document {
+    tableNumber: number;
+    items: IOrderItem[];
+    status: "pending" | "preparing" | "ready" | "served";
+    createdAt: Date;
+}
+
 const userSchema = new Schema({
     username: { type: String, required: true },
     password: { type: String, required: true },
     role: { type: String, required: true}
 });
+
+const User = model<IUser>("user", userSchema);
 
 const menuSchema = new Schema({
     name: {type: String, required:true},
@@ -38,9 +53,25 @@ const menuSchema = new Schema({
     price: {type: Number},
     availability: {type: Boolean},
     image: {type: String} 
-})
+});
 
-const User = model<IUser>("user", userSchema);
 const Menu = model<IMenu>("menu", menuSchema);
 
-export {User, Menu};
+const orderSchema = new Schema({
+    tableNumber: { type: Number, required: true }, 
+    items: [{
+        itemId: { type: Schema.Types.ObjectId, ref: Menu, required: true },
+        name: { type: String, required: true },
+        quantity: { type: Number, required: true, min: 1 },
+    }],
+    status: { 
+        type: String, 
+        enum: ["pending", "preparing", "ready", "served"], 
+        default: "pending"
+    },
+    createdAt: { type: Date, default: Date.now }
+});
+
+const Order = model<IOrder>("Order", orderSchema);
+
+export {User, Menu, Order};
