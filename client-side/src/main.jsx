@@ -9,6 +9,7 @@ import CartPage from './Pages/CartPage'
 import { CheckoutPage } from './Pages/CheckoutPage'
 import AdminPage from './Pages/AdminPage'
 import { OrderProvider } from './Context/OrderContext'
+import User from './Pages/User'
 createRoot(document.getElementById('root')).render(
   <OrderProvider>
 
@@ -21,7 +22,9 @@ createRoot(document.getElementById('root')).render(
             <Route path="/food" element={<FoodPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/login" element={<User />} />
             <Route path="/admin" element={<AdminPage />} />
+
           </Routes>
         </BrowserRouter>
       </StrictMode >

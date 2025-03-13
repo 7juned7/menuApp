@@ -1,20 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import foodimg from "../assets/FoodImages/chole-bhature.jpg"
 
 import FoodItem from "../Components/FoodItem";
 import Hero from "../Components/Hero";
-const menuItems = [
-    { id: 1, name: "Chole Bhature", category: "Fast Food", price: 5, image: foodimg, rating: "4.5" },
-    { id: 2, name: "Chole Bhature", category: "Fast Food", price: 5, image: foodimg, rating: "4.5" },
-    { id: 3, name: "Chole Bhature", category: "Fast Food", price: 5, image: foodimg, rating: "4.5" },
-    { id: 4, name: "Chole Bhature", category: "Fast Food", price: 5, image: foodimg, rating: "4.5" },
-    { id: 5, name: "Chole Bhature", category: "Fast Food", price: 5, image: foodimg, rating: "4.5" },
-    { id: 6, name: "Chole Bhature", category: "Fast Food", price: 5, image: foodimg, rating: "4.5" },
-    { id: 7, name: "Chole Bhature", category: "Fast Food", price: 5, image: foodimg, rating: "4.5" },
-];
+
 
 export default function MenuPage() {
+    const [menuItems, setMenuItems] = useState([])
     const [cart, setCart] = useState([]);
 
     const addToCart = (item) => {
@@ -22,6 +15,29 @@ export default function MenuPage() {
     };
 
     const totalPrice = cart.reduce((total, item) => total + item.price, 0);
+
+    useEffect(() => {
+        const fetchMenuData = async () => {
+            try {
+                const response = await fetch("http://localhost:5000/api/getmenu");
+                if (!response.ok) {
+                    throw new Error(` error in fetching${response.status}`)
+                }
+                const data = await response.json();
+
+                setMenuItems(data.menu);
+
+                return data;
+
+            } catch (error) {
+                console.error("Error fetching data:", error)
+                return null
+            }
+        }
+        fetchMenuData();
+
+    }, [])
+
 
     return (
         <div className="min-h-screen bg-[#FFF8EE] p-0 items-center justify-center flex flex-col ">
@@ -52,13 +68,13 @@ export default function MenuPage() {
             </div>
             <h1 className="text-3xl font-bold text-center mb-6">Menu</h1>
             <div className="flex flex-col w-full p-4 gap-4">
-                {menuItems.map((item, i) => (
+                {menuItems.map((item) => (
 
-                    <div key={i} className="">
+                    <div key={item._id} className="">
 
 
                         <FoodItem
-                            key={item.id}
+                            id={item._id}
                             rating={item.rating}
                             img={item.image}
                             alt={item.name}

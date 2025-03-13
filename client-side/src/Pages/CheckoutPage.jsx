@@ -10,34 +10,47 @@ export function CheckoutPage() {
     const [customer, setCustomer] = useState({ name: "", tableNo: "", payment: "" });
     const [orderPlaced, setOrderPlaced] = useState(false);
     const [orderData, setOrderData] = useState(null); // Store order details
-
+    console.log(cart)
     const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     const handleInputChange = (e) => {
         setCustomer({ ...customer, [e.target.name]: e.target.value });
     };
 
-    const handleOrder = () => {
+    const handleCheckout = async () => {
         if (customer.name && customer.tableNo && customer.payment) {
-            const newOrder = {
-                id: `ORD-${Date.now()}`, // Unique order ID
-                customer: { ...customer },
-                items: [...cart],
-                total: totalPrice,
-                status: "Pending",
+            const orderData = {
+                tableNumber: customer.tableNo,
+                items: cart.map(item => ({
+                    itemId: item._id,  // Ensure the backend expects `_id`
+                    name: item.name,
+                    quantity: item.quantity
+                }))
             };
 
-            setOrderData(newOrder); // Store order details
-            setCustomerOrder([...customerOrder, newOrder])
-            setCart([]); // Clear cart after order
-            setItemCount(0);
-            setOrderPlaced(true);
+            console.log("Sending Order Data:", orderData); // Debugging before request
 
+            try {
+                const response = await fetch("http://localhost:5000/api/order", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(orderData)
+                });
 
-        } else {
-            alert("Please fill in all details to place the order.");
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.message || `HTTP error! Status: ${response.status}`);
+                }
+
+                console.log("Order Placed Successfully:", result);
+            } catch (error) {
+                console.error("Error placing order:", error);
+            }
         }
     };
+
 
     if (orderPlaced) {
         Navigate("../admin")
@@ -98,7 +111,7 @@ export function CheckoutPage() {
             </div>
 
             <button
-                onClick={handleOrder}
+                onClick={handleCheckout}
                 className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 w-full"
             >
                 Place Order

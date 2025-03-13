@@ -8,14 +8,18 @@ const FoodPage = () => {
     const { cart, setCart, setItemCount } = useCartContext();
     const location = useLocation();
 
-    const food = location.state
+    const id = location.state
+
+    const [food, setFood] = useState([]);
+
     const [quantity, setQuantity] = useState(1);
     const increaseQty = () => setQuantity(quantity + 1);
     const decreaseQty = () => setQuantity(quantity > 1 ? quantity - 1 : 1);
     const addToCart = (food) => {
         setItemCount(prevCount => prevCount + 1);
         setCart(prevCart => {
-            const existingItem = prevCart.find(item => item.id === food.id);
+
+            const existingItem = prevCart.find(item => item._id === food._id);
             if (existingItem) {
                 return prevCart.map(item =>
                     item.id === food.id ? { ...item, quantity: item.quantity + quantity } : item
@@ -28,16 +32,45 @@ const FoodPage = () => {
     };
 
     const goToBuy = (food) => {
-        setCart([...cart, { ...food, quantity }]);
+        setCart(prevCart => {
+            const existingItem = prevCart.find(item => item.id === food.id);
+            if (existingItem) {
+                return prevCart; // Don't add duplicate item
+            } else {
+                return [...prevCart, { ...food, quantity }];
+            }
+        });
+    };
 
-    }
+    useEffect(() => {
+        const fetchFoodData = async (id) => {
 
+            try {
+                const response = await fetch(`http://localhost:5000/api/getitem/${id}`);
+
+                if (!response.ok) {
+                    throw new Error(`error in fetching${response.status}`)
+                }
+                const data = await response.json();
+
+                setFood(data.item);
+
+                return data;
+
+            } catch (error) {
+                console.error("Error fetching data:", error)
+                return null
+            }
+        }
+        fetchFoodData(id);
+        console.log(food)
+    }, [])
 
     return (
         <>
             <Navbar />
             <div className="p-6 flex gap-6 items-center">
-                <img src={food.image} alt={food.name} className="w-1/2 h-64 object-cover rounded" />
+                <img src={`data:image/jpeg;base64,${food.image}`} alt={food.name} className="w-1/2 h-64 object-cover rounded" />
                 <div className="space-y-4 w-1/2">
                     <h2 className="text-2xl font-bold">{food.name}</h2>
                     <p className="text-gray-600">Category: {food.category}</p>

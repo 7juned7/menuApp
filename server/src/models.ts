@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 dotenv.config();
 const DATABASE_URI = process.env.DATABASE as string;
 
-connect(DATABASE_URI)
+connect("mongodb+srv://ffriction73:JBaTqCffhnGixMhR@cluster0.qpibn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
     .then(() => {console.log("DB connected successfully✅")})
     .catch((err) => {console.log("DB did not connect❌\n", err)}) 
 
