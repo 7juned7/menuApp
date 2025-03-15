@@ -78,9 +78,9 @@ const Orders = () => {
 
 
         {
-            statusArray.map((status) => {
+            statusArray.map((status, i) => {
                 return (
-                    <>
+                    <div div className key={i}>
                         <h3 className='my-4 font-bold'>{status} Orders</h3>
                         {
                             customerOrder.length === 0 ? (
@@ -123,7 +123,7 @@ const Orders = () => {
                                 </table>
                             )
                         }
-                    </>
+                    </div>
                 )
             })
         }
