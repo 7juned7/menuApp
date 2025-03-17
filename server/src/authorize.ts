@@ -4,38 +4,36 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-interface UserPayload {
+interface RestaurantPayload {
     id: string;
     role: string;
-    username: string;
+    name: string;
 }
 
-export function authenticate(req: Request, res: Response, next: NextFunction){
+export function authenticate(req: Request, res: Response, next: NextFunction) {
     const token = req.header("Authorization")?.split(' ')[1];
-    if(!token){
-        res.status(401).json({message: "Access Denied"});
-        return;
+    if (!token) {
+        res.status(401).json({ message: "Access Denied" });
+        return; 
     }
-    try{
-        const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as UserPayload;
-        (req as any).user = decoded;
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as RestaurantPayload;
+        (req as any).restaurant = decoded;
         next();
-    } catch(err){
-        res.status(400).json({message: "Invalid Token"});
+    } catch (err) {
+        res.status(400).json({ message: "Invalid Token" });
     }
 }
 
-export function authorizeAdmin(req: Request, res: Response, next: NextFunction){
-    const user = (req as any).user.role;
+// export function authorizeRestaurant(req: Request, res: Response, next: NextFunction) {
+//     const role = (req as any).restaurant?.role;
     
-    if (!user) {
-        res.status(401).json({ message: "Unauthorized: No user found" });
-        return; 
-    }
+//     if (!role) {
+//         return res.status(401).json({ message: "Unauthorized: No restaurant found" });
+//     }
 
-    if(user !== "admin"){
-        res.status(403).json({message: "Forbidden: Admins only"});
-        return; 
-    }
-    next();
-}
+//     if (role !== "restaurant") {
+//         return res.status(403).json({ message: "Forbidden: Restaurants only" });
+//     }
+//     next();
+// }

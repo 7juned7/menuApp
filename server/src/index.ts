@@ -1,12 +1,14 @@
 import express, { Request, Response } from "express";
 import bcrypt from "bcrypt";
-import {User, Menu, Order} from "./models";
+import { Menu, Restaurant } from "./models";
 import jwt from "jsonwebtoken";
-import { authenticate, authorizeAdmin } from "./authorize";
+import { authenticate } from "./authorize";
 import multer from "multer";
 import cors from "cors";
+import { config } from "dotenv";
 
-const PORT = 5000;
+config();
+const PORT = 5001;
 const app = express();
 app.use(cors());
 
@@ -33,75 +35,160 @@ app.get("/api/", (req: Request, res: Response) => {
     res.json("hello!");
 });
 
-// Register Route
-app.post("/api/register", async (req: Request, res: Response): Promise<any> => {
-    try{
-        const {username, password, role} = req.body;
-        const existingUser = await User.findOne({username});
 
-        if(existingUser){
-            return res.status(400).json({message: "Username already exist"});
+// Register Restaurant
+app.post("/api/register", async (req: Request, res: Response): Promise<any> => {
+    try {
+        const { email, password } = req.body;
+
+        // Check if restaurant already exists
+        const existingRestaurant = await Restaurant.findOne({ email });
+        if (existingRestaurant) {
+            return res.status(400).json({ message: "Restaurant already registered!" });
         }
 
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-        const newUser = new User({
-            username,
+        // Create new restaurant
+        const newRestaurant = new Restaurant({
+            email,
             password: hashedPassword,
-            role
         });
 
-        await newUser.save();
-        res.status(201).json({message: "User registered successfully"});
-    } catch(err){
-        console.error("Registration error:", err);
-        res.status(500).json({ message: "Internal server error" });
+        await newRestaurant.save();
+
+        // Generate JWT token
+        const token = jwt.sign({ id: newRestaurant._id, email }, process.env.JWT_SECRET as string, {
+            expiresIn: "7d",
+        });
+
+        res.status(201).json({ message: "Restaurant registered successfully", token });
+
+    } catch (error) {
+        res.status(500).json({ message: "Server error❌", error });
     }
 });
 
-// Login route
+// Login Restaurant
 app.post("/api/login", async (req: Request, res: Response): Promise<any> => {
     try {
-        const { username, password } = req.body;
-        const user = await User.findOne({ username });
+        const { email, password } = req.body;
 
-        if (!user) {
-            return res.status(400).json({ message: "User not found" });
+        // Check if restaurant exists
+        const restaurant = await Restaurant.findOne({ email });
+        if (!restaurant) {
+            return res.status(400).json({ message: "Invalid email or password" });
         }
 
-        const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) {
-            return res.status(400).json({ message: "Invalid credentials" });
+        // Compare password
+        const isMatch = await bcrypt.compare(password, restaurant.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: "Invalid email or password" });
         }
 
+        // Generate JWT token
         const token = jwt.sign(
-            {
-                id: user.id,
-                role: user.role
-            },
+            { id: restaurant._id, name: restaurant.name },
             process.env.JWT_SECRET as string,
-            { expiresIn: "1h" }
+            { expiresIn: "7d" }
         );
 
-        res.json({ token });
+        res.status(200).json({ message: "Login successful", token });
+
     } catch (error) {
-        console.error("Error in /login:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+        res.status(500).json({ message: "Server error❌", error });
     }
 });
 
-// add item route 
-app.put("/api/additem", authenticate, authorizeAdmin, upload.single("image"), async (req: Request, res: Response): Promise<any> => {
-    try{
-        const {name, description, category, foodType, price, availability} = req.body;
-        const image = req.file ? req.file.buffer.toString("base64") : undefined;
-        if (!name || !description || !category || !foodType || !price || availability === undefined) {
-            return res.status(400).json({ message: "All fields are required" });
+// Update restaurant profile (excluding email, password, and menu)
+app.put(
+    "/api/update",
+    authenticate,
+    upload.fields([
+        { name: "profilePicture", maxCount: 1 },
+        { name: "bannerPicture", maxCount: 1 },
+    ]),
+    async (req: Request, res: Response): Promise<any> => {
+        try {
+            const restaurantId = (req as any).restaurant.id;
+            let { name, description, phone, instagram } = req.body;
+            // Extract colors into an object with explicit typing
+            const colors: Record<string, string> = Object.keys(req.body)
+            .filter(key => key.startsWith('colors.'))
+            .reduce((acc: Record<string, string>, key) => {
+            const colorKey = key.split('.')[1]; // Extract 'dark', 'medium', 'light'
+            acc[colorKey] = req.body[key];
+            return acc;
+            }, {} as Record<string, string>);
+
+            // Remove original color properties from req.body
+            Object.keys(colors).forEach(key => delete req.body[`colors.${key}`]);
+
+            // Add the transformed colors object to req.body
+            req.body.colors = colors;
+
+            // console.log(req.body); // Debugging: Check incoming data
+            // console.log(colors);
+
+            // ✅ Handle image uploads
+            const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+            const profilePicture = files?.profilePicture?.[0]?.buffer.toString("base64");
+            const bannerPicture = files?.bannerPicture?.[0]?.buffer.toString("base64");
+
+            // ✅ Update restaurant profile
+            const updatedRestaurant = await Restaurant.findByIdAndUpdate(
+                restaurantId,
+                {
+                    name,
+                    description,
+                    phone,
+                    instagram,
+                    colors, // Now properly formatted as an object
+                    ...(profilePicture && { profilePicture }), // Update only if new image is provided
+                    ...(bannerPicture && { bannerPicture }),
+                },
+                { new: true, runValidators: true }
+            );
+
+            if (!updatedRestaurant) {
+                return res.status(404).json({ message: "Restaurant not found" });
+            }
+
+            res.status(200).json({ message: "Profile updated successfully", updatedRestaurant });
+
+        } catch (error) {
+            console.error("Update Error:", error);
+            res.status(500).json({ message: "Server error❌", error });
         }
+    }
+);
+
+
+// Add menu item to restaurant
+app.put("/api/additem", authenticate, upload.single("image"), async (req: Request, res: Response): Promise<any> => {
+    try {
+        const restaurantId = (req as any).restaurant.id; // Extract restaurant ID from authenticated user
+        const { name, description, category, foodType, price, availability } = req.body;
+        const image = req.file ? req.file.buffer.toString("base64") : undefined;
+
+        // Validate required fields
+        if (!name || !category || !price || availability === undefined) {
+            return res.status(400).json({ message: "Name, category, price, and availability are required" });
+        }
+
+        // Validate image size
         if (req.file && req.file.size > 2 * 1024 * 1024) {
             return res.status(400).json({ message: "Image size should be less than 2MB" });
         }
+
+        // Find the restaurant
+        const restaurant = await Restaurant.findById(restaurantId);
+        if (!restaurant) {
+            return res.status(404).json({ message: "Restaurant not found" });
+        }
+
+        // Create a new menu item
         const newItem = new Menu({
             name,
             description,
@@ -110,164 +197,60 @@ app.put("/api/additem", authenticate, authorizeAdmin, upload.single("image"), as
             price,
             availability,
             image
-        })
-
-        await newItem.save();
-        res.status(200).json({message: "Item added successfully"});
-    } catch(err){
-        console.error("Error in /additem:", err);
-        res.status(500).json({message: "Internal Server Error"});
-    }
-})
-
-// get all items
-app.get("/api/getmenu", async (req: Request, res: Response): Promise<any> => {
-    try{
-        const menu = await Menu.find();
-        if(menu.length === 0){
-            return res.status(200).json({message: "Menu is empty"});
-        }
-        res.status(200).json({menu});
-    } catch(err){
-        console.error("Error in getmenu: ", err)
-        res.status(500).json({message: "Internal Server Error"});
-    }
-})
-
-app.get("/api/getitem/:id", async (req: Request, res: Response): Promise<any> => {
-    try {
-        const { id } = req.params;
-
-        if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-            return res.status(400).json({ message: "Invalid item ID" });
-        }
-
-        const item = await Menu.findById(id);
-
-        if (!item) {
-            return res.status(404).json({ message: "Item not found" });
-        }
-
-        res.status(200).json({ item });
-    } catch (err) {
-        console.error("Error in /getitem:", err);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-});
-
-
-// modify an item in menu
-app.put("/api/changeitem/:id", authenticate, authorizeAdmin, upload.single("image"), async (req: Request, res: Response): Promise<any> => {
-    try {
-        const { id } = req.params;
-        const updates = req.body;
-
-        // Validate ID format
-        if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-            return res.status(400).json({ message: "Invalid item ID" });
-        }
-
-        const item = await Menu.findById(id);
-        if (!item) {
-            return res.status(404).json({ message: "Item not found" });
-        }
-
-        if (req.file) {
-            updates.image = req.file.buffer.toString("base64");
-        }
-
-        if (Object.keys(updates).length === 0) {
-            return res.status(400).json({ message: "Provide at least one field to update" });
-        }
-
-        const updatedItem = await Menu.findByIdAndUpdate(id, updates, { new: true });
-
-        res.status(200).json({ message: "Item updated successfully", updatedItem });
-    } catch (err) {
-        console.error("Error in change item: ", err);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-});
-
-
-app.post("/api/order", async (req: Request, res: Response): Promise<any> => {
-    try {
-        const { tableNumber, items } = req.body;
-
-        // ✅ Validate Request
-        if (!tableNumber || !items || items.length === 0) {
-            return res.status(400).json({ message: "Table number and items are required" });
-        }
-
-        // ✅ Create and Save Order
-        const newOrder = new Order({ tableNumber, items });
-        await newOrder.save();
-
-        res.status(201).json({ message: "Order placed successfully", order: newOrder });
-    } catch (err) {
-        console.error("Error in /order:", err);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-});
-
-app.get("/api/orders", authenticate, authorizeAdmin, async (req: Request, res: Response) => {
-    try {
-        const orders = await Order.find().populate("items.itemId");
-
-        res.status(200).json({ orders });
-    } catch (err) {
-        console.error("Error in /orders:", err);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-});
-
-app.put("/api/order/:id/status", authenticate, authorizeAdmin, async (req: Request, res: Response): Promise<any> => {
-    try {
-        const { id } = req.params;
-        const { status } = req.body;
-
-        if (!["pending", "preparing", "ready", "served"].includes(status)) {
-            return res.status(400).json({ message: "Invalid status update" });
-        }
-
-        const order = await Order.findByIdAndUpdate(id, { status }, { new: true });
-
-        if (!order) return res.status(404).json({ message: "Order not found" });
-
-        res.status(200).json({ message: "Order status updated", order });
-    } catch (err) {
-        console.error("Error in /order/status:", err);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-});
-
-app.get("/api/order-status/:tableNumber", async (req: Request, res: Response): Promise<any> => {
-    try {
-        const { tableNumber } = req.params;
-
-        // Validate table number
-        if (isNaN(Number(tableNumber))) {
-            return res.status(400).json({ message: "Invalid table number" });
-        }
-
-        // Find the latest order for the given table
-        const order = await Order.findOne({ tableNumber })
-            .sort({ createdAt: -1 }) // Get the latest order
-            .select("items status createdAt");
-
-        if (!order) {
-            return res.status(404).json({ message: "No order found for this table" });
-        }
-
-        res.status(200).json({
-            tableNumber,
-            status: order.status,
-            items: order.items,
-            createdAt: order.createdAt,
         });
+
+        // Save menu item
+        await newItem.save();
+        
+        // Add menu item to restaurant's menu array
+        if(restaurant.menu != undefined){
+            restaurant.menu.push(newItem._id);
+            await restaurant.save();
+        }
+
+        res.status(200).json({ message: "Item added successfully", newItem });
+
     } catch (err) {
-        console.error("Error in fetching order status:", err);
-        res.status(500).json({ message: "Internal Server Error" });
+        console.error("Error in /api/additem:", err);
+        res.status(500).json({ message: "Internal Server Error❌", error: err });
+    }
+});
+
+// Get restaurant details without menu
+app.get("/api/restaurant/:id", async (req:Request, res: Response): Promise<any> => {
+    try {
+        const { id } = req.params;
+        
+        // Find the restaurant and exclude 'menu' field
+        const restaurant = await Restaurant.findById(id).select("-menu -password");
+
+        if (!restaurant) {
+            return res.status(404).json({ message: "Restaurant not found" });
+        }
+
+        res.status(200).json(restaurant);
+    } catch (error) {
+        console.error("Error fetching restaurant:", error);
+        res.status(500).json({ message: "Internal Server Error❌" });
+    }
+});
+
+// Get menu of a restaurant by restaurant ID
+app.get("/api/restaurant/:id/menu", async (req: Request, res: Response): Promise<any> => {
+    try {
+        const { id } = req.params;
+        
+        // Find the restaurant and populate the menu field
+        const restaurant = await Restaurant.findById(id).populate("menu");
+
+        if (!restaurant) {
+            return res.status(404).json({ message: "Restaurant not found" });
+        }
+
+        res.status(200).json(restaurant.menu); // Send only the menu
+    } catch (error) {
+        console.error("Error fetching restaurant menu:", error);
+        res.status(500).json({ message: "Internal Server Error❌" });
     }
 });
 
